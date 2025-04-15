@@ -29,6 +29,7 @@ function App() {
   } = useSupabaseNotes();
 
   const [isMounted, setIsMounted] = useState(false);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
@@ -49,6 +50,11 @@ function App() {
   if (!user) {
     return <AuthPage />;
   }
+
+  const handleBackToNotes = () => {
+    setActiveNote(null);
+    setIsSidebarVisible(true);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
@@ -94,6 +100,7 @@ function App() {
             onUpdate={updateNote}
             onDelete={deleteNote}
             onTogglePinned={togglePinned}
+            onBack={handleBackToNotes}
           />
         )}
       </main>

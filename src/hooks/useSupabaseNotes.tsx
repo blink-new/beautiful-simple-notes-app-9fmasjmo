@@ -285,6 +285,15 @@ export function useSupabaseNotes() {
     if (!user) return;
 
     try {
+      // Optimistic UI update - remove from local state first
+      setNotes(prev => prev.filter(note => note.id !== id));
+      
+      // If the deleted note is the active note, clear it
+      if (activeNote?.id === id) {
+        setActiveNote(null);
+      }
+
+      // Then perform the actual delete operation
       const { error } = await supabase
         .from('notes')
         .delete()
@@ -295,12 +304,20 @@ export function useSupabaseNotes() {
         console.error('Error deleting note:', error);
         throw error;
       }
-      
-      if (activeNote?.id === id) {
-        setActiveNote(null);
-      }
     } catch (error: any) {
+      // Revert the optimistic update if there was an error
       toast.error(`Error deleting note: ${error.message}`);
+      
+      // Reload notes to ensure UI is in sync with server
+      const { data } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+        
+      if (data) {
+        setNotes(data);
+      }
     }
   };
 
@@ -312,6 +329,17 @@ export function useSupabaseNotes() {
     if (!noteToUpdate) return;
 
     try {
+      // Optimistic UI update
+      setNotes(prev => 
+        prev.map(note => 
+          note.id === id ? { ...note, is_pinned: !note.is_pinned } : note
+        )
+      );
+      
+      if (activeNote?.id === id) {
+        setActiveNote(prev => prev ? { ...prev, is_pinned: !prev.is_pinned } : null);
+      }
+
       const { error } = await supabase
         .from('notes')
         .update({
@@ -326,7 +354,27 @@ export function useSupabaseNotes() {
         throw error;
       }
     } catch (error: any) {
+      // Revert optimistic update on error
       toast.error(`Error updating note: ${error.message}`);
+      
+      // Reload notes to ensure UI is in sync with server
+      const { data } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+        
+      if (data) {
+        setNotes(data);
+        
+        // Update active note if needed
+        if (activeNote?.id === id) {
+          const updatedActiveNote = data.find(note => note.id === id);
+          if (updatedActiveNote) {
+            setActiveNote(updatedActiveNote);
+          }
+        }
+      }
     }
   };
 

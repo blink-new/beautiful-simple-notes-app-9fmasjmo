@@ -24,7 +24,7 @@ interface EditorProps {
   onUpdate: (note: Partial<SupabaseNote> & { id: string }) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onTogglePinned: (id: string) => Promise<void>;
-  onBack: () => void;
+  onBack?: () => void;
 }
 
 export function Editor({
@@ -141,7 +141,7 @@ export function Editor({
           <p className="text-muted-foreground mb-6">
             Select a note from the sidebar or create a new one to get started.
           </p>
-          {isMobile && (
+          {isMobile && onBack && (
             <Button onClick={onBack}>
               <ArrowLeft size={16} className="mr-2" /> Back to Notes
             </Button>
@@ -154,7 +154,7 @@ export function Editor({
   return (
     <div className="flex-1 flex flex-col h-full bg-background overflow-hidden">
       <div className="border-b border-border p-4 flex items-center justify-between">
-        {isMobile && (
+        {isMobile && onBack && (
           <Button variant="ghost" size="icon" onClick={onBack}>
             <ArrowLeft size={18} />
           </Button>
