@@ -16,12 +16,16 @@ function App() {
     notes,
     categories,
     activeNote,
+    searchQuery,
+    activeCategory,
+    isLoading: isNotesLoading,
     setActiveNote,
+    setSearchQuery,
+    setActiveCategory,
     createNote,
     updateNote,
     deleteNote,
     togglePinned,
-    isLoading: isNotesLoading,
   } = useSupabaseNotes();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -70,7 +74,20 @@ function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar />
+      <Sidebar 
+        notes={notes}
+        categories={categories || []} 
+        activeNote={activeNote}
+        searchQuery={searchQuery}
+        activeCategory={activeCategory}
+        isLoading={isNotesLoading}
+        setSearchQuery={setSearchQuery}
+        setActiveNote={setActiveNote}
+        setActiveCategory={setActiveCategory}
+        createNote={createNote}
+        deleteNote={deleteNote}
+        togglePinned={togglePinned}
+      />
       <main className="flex-1 overflow-hidden">
         {isNotesLoading ? (
           <div className="flex items-center justify-center h-full">
@@ -95,7 +112,7 @@ function App() {
         ) : (
           <Editor
             note={activeNote}
-            categories={categories}
+            categories={categories || []}
             onUpdate={updateNote}
             onDelete={deleteNote}
             onTogglePinned={togglePinned}
