@@ -63,7 +63,8 @@
     "zod": "^3.24.2",
     "@supabase/supabase-js": "latest",
     "uuid": "latest",
-    "@types/uuid": "latest"
+    "@types/uuid": "latest",
+    "react-color": "latest"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

@@ -67,6 +67,7 @@ export function useSupabaseNotes() {
 
         // If no categories exist, create default ones
         if (!categoriesData || categoriesData.length === 0) {
+          // Define default categories
           const defaultCategories = [
             { id: uuidv4(), name: 'Personal', color: '#f87171', user_id: user.id },
             { id: uuidv4(), name: 'Work', color: '#60a5fa', user_id: user.id },
@@ -74,16 +75,53 @@ export function useSupabaseNotes() {
             { id: uuidv4(), name: 'Tasks', color: '#facc15', user_id: user.id },
           ];
 
-          const { data: insertedCategories, error: insertError } = await supabase
-            .from('categories')
-            .insert(defaultCategories)
-            .select();
-
-          if (insertError) {
-            console.error('Error inserting default categories:', insertError);
-            throw insertError;
+          // Insert categories one by one to handle potential conflicts
+          const createdCategories: SupabaseCategory[] = [];
+          
+          for (const category of defaultCategories) {
+            try {
+              const { data, error } = await supabase
+                .from('categories')
+                .insert(category)
+                .select()
+                .single();
+                
+              if (error) {
+                // If it's a conflict error (409), try to fetch the existing category
+                if (error.code === '23505' || error.status === 409) {
+                  const { data: existingCategory } = await supabase
+                    .from('categories')
+                    .select('*')
+                    .eq('name', category.name)
+                    .eq('user_id', user.id)
+                    .single();
+                    
+                  if (existingCategory) {
+                    createdCategories.push(existingCategory as SupabaseCategory);
+                  }
+                } else {
+                  console.error(`Error creating category ${category.name}:`, error);
+                }
+              } else if (data) {
+                createdCategories.push(data as SupabaseCategory);
+              }
+            } catch (err) {
+              console.error(`Error processing category ${category.name}:`, err);
+            }
           }
-          setCategories(insertedCategories || defaultCategories);
+          
+          if (createdCategories.length > 0) {
+            setCategories(createdCategories);
+          } else {
+            // If we couldn't create any categories, try one more time to fetch all categories
+            const { data: retryCategories } = await supabase
+              .from('categories')
+              .select('*')
+              .eq('user_id', user.id)
+              .order('name');
+              
+            setCategories(retryCategories || []);
+          }
         } else {
           setCategories(categoriesData);
         }
@@ -296,6 +334,19 @@ export function useSupabaseNotes() {
   const createCategory = async (name: string, color: string = '#64748b') => {
     if (!user) {
       toast.error('You must be signed in to create categories');
+      return null;
+    }
+
+    // Check if a category with this name already exists
+    const { data: existingCategory } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('name', name)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingCategory) {
+      toast.error(`A category named "${name}" already exists`);
       return null;
     }
 
