@@ -1,125 +1,109 @@
 
-import { useState, useEffect } from 'react';
-import { Sidebar } from './components/Sidebar';
-import { Editor } from './components/Editor';
-import { EmptyState } from './components/EmptyState';
-import { AuthForm } from './components/auth/AuthForm';
-import { UserMenu } from './components/layout/UserMenu';
-import { useSupabaseNotes } from './hooks/useSupabaseNotes';
-import { useAuth } from './hooks/useAuth';
-import { motion } from 'framer-motion';
-import { Toaster } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useAuth } from "./hooks/useAuth";
+import { useSupabaseNotes } from "./hooks/useSupabaseNotes";
+import { AuthForm } from "./components/auth/AuthForm";
+import { Sidebar } from "./components/Sidebar";
+import { Editor } from "./components/Editor";
+import { Toaster } from "./components/ui/sonner";
+import { EmptyState } from "./components/EmptyState";
+import { Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 
 function App() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: isAuthLoading } = useAuth();
   const {
     notes,
     categories,
     activeNote,
-    searchQuery,
-    activeCategory,
-    isLoading: notesLoading,
     setActiveNote,
-    setSearchQuery,
-    setActiveCategory,
     createNote,
     updateNote,
     deleteNote,
     togglePinned,
+    isLoading: isNotesLoading,
   } = useSupabaseNotes();
 
-  const [isLoaded, setIsLoaded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
-  // Add a small delay to allow for smooth animations on initial load
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoaded(true);
-    }, 300);
-    
-    return () => clearTimeout(timer);
+    setIsMounted(true);
   }, []);
 
-  const handleBackToList = () => {
-    setActiveNote(null);
-  };
+  if (!isMounted) {
+    return null;
+  }
 
-  // Show loading state while authentication is being checked
-  if (authLoading) {
+  if (isAuthLoading) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  // Show auth form if user is not logged in
   if (!user) {
     return (
-      <div className="h-screen flex items-center justify-center p-4 bg-background">
-        <Toaster position="top-right" />
-        <AuthForm />
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-background to-muted/30">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="w-full max-w-md p-8 space-y-6 bg-background rounded-lg shadow-lg border"
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.5 }}
+          >
+            <h1 className="text-3xl font-bold text-center">Notes App</h1>
+            <p className="text-center text-muted-foreground mt-2">
+              Sign in to access your notes
+            </p>
+          </motion.div>
+          <AuthForm />
+        </motion.div>
+        <Toaster />
       </div>
     );
   }
 
   return (
-    <motion.div 
-      className="h-screen flex flex-col overflow-hidden"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Toaster position="top-right" />
-      
-      <header className="border-b border-border p-2 flex items-center justify-between">
-        <h1 className="text-xl font-semibold ml-4">Notes</h1>
-        <UserMenu user={user} />
-      </header>
-      
-      <main className="flex-1 flex overflow-hidden">
-        <Sidebar
-          notes={notes}
-          categories={categories}
-          activeNote={activeNote}
-          searchQuery={searchQuery}
-          activeCategory={activeCategory}
-          isLoading={notesLoading}
-          setSearchQuery={setSearchQuery}
-          setActiveNote={setActiveNote}
-          setActiveCategory={setActiveCategory}
-          createNote={createNote}
-          deleteNote={deleteNote}
-          togglePinned={togglePinned}
-        />
-        
-        {isLoaded && (
-          <motion.div 
-            className="flex-1 overflow-hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-          >
-            {notesLoading ? (
-              <div className="h-full flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : notes.length === 0 ? (
-              <EmptyState onCreateNote={() => createNote(activeCategory || undefined)} />
-            ) : (
-              <Editor
-                note={activeNote}
-                categories={categories}
-                onUpdate={updateNote}
-                onDelete={deleteNote}
-                onTogglePinned={togglePinned}
-                onBack={handleBackToList}
-              />
-            )}
-          </motion.div>
+    <div className="flex h-screen overflow-hidden bg-background">
+      <Sidebar />
+      <main className="flex-1 overflow-hidden">
+        {isNotesLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          </div>
+        ) : notes.length === 0 ? (
+          <EmptyState
+            title="No notes yet"
+            description="Create your first note to get started"
+            actionLabel="Create Note"
+            onAction={() => createNote()}
+            isLoading={isNotesLoading}
+          />
+        ) : !activeNote ? (
+          <EmptyState
+            title="Select a note"
+            description="Choose a note from the sidebar or create a new one"
+            actionLabel="Create Note"
+            onAction={() => createNote()}
+            isLoading={isNotesLoading}
+          />
+        ) : (
+          <Editor
+            note={activeNote}
+            categories={categories}
+            onUpdate={updateNote}
+            onDelete={deleteNote}
+            onTogglePinned={togglePinned}
+          />
         )}
       </main>
-    </motion.div>
+      <Toaster />
+    </div>
   );
 }
 

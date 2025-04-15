@@ -32,6 +32,7 @@ export function useSupabaseNotes() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   // Load notes and categories when user changes
   useEffect(() => {
@@ -53,10 +54,19 @@ export function useSupabaseNotes() {
           .eq('user_id', user.id)
           .order('name');
 
-        if (categoriesError) throw categoriesError;
+        if (categoriesError) {
+          console.error('Error loading categories:', categoriesError);
+          // If the error is a 404, it might mean the table doesn't exist yet
+          if (categoriesError.code === '42P01' || categoriesError.message.includes('does not exist')) {
+            toast.error('Database tables not found. Please refresh after setup completes.');
+            setIsLoading(false);
+            return;
+          }
+          throw categoriesError;
+        }
 
         // If no categories exist, create default ones
-        if (categoriesData.length === 0) {
+        if (!categoriesData || categoriesData.length === 0) {
           const defaultCategories = [
             { id: uuidv4(), name: 'Personal', color: '#f87171', user_id: user.id },
             { id: uuidv4(), name: 'Work', color: '#60a5fa', user_id: user.id },
@@ -69,7 +79,10 @@ export function useSupabaseNotes() {
             .insert(defaultCategories)
             .select();
 
-          if (insertError) throw insertError;
+          if (insertError) {
+            console.error('Error inserting default categories:', insertError);
+            throw insertError;
+          }
           setCategories(insertedCategories || defaultCategories);
         } else {
           setCategories(categoriesData);
@@ -82,9 +95,15 @@ export function useSupabaseNotes() {
           .eq('user_id', user.id)
           .order('updated_at', { ascending: false });
 
-        if (notesError) throw notesError;
-        setNotes(notesData);
+        if (notesError) {
+          console.error('Error loading notes:', notesError);
+          throw notesError;
+        }
+        
+        setNotes(notesData || []);
+        setIsInitialized(true);
       } catch (error: any) {
+        console.error('Error in loadData:', error);
         toast.error(`Error loading data: ${error.message}`);
       } finally {
         setIsLoading(false);
@@ -93,61 +112,66 @@ export function useSupabaseNotes() {
 
     loadData();
 
-    // Set up realtime subscriptions
-    const notesSubscription = supabase
-      .channel('notes-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setNotes(prev => [payload.new as SupabaseNote, ...prev]);
-          } else if (payload.eventType === 'UPDATE') {
-            setNotes(prev => 
-              prev.map(note => 
-                note.id === payload.new.id ? (payload.new as SupabaseNote) : note
-              )
-            );
-            if (activeNote?.id === payload.new.id) {
-              setActiveNote(payload.new as SupabaseNote);
-            }
-          } else if (payload.eventType === 'DELETE') {
-            setNotes(prev => prev.filter(note => note.id !== payload.old.id));
-            if (activeNote?.id === payload.old.id) {
-              setActiveNote(null);
-            }
-          }
-        }
-      )
-      .subscribe();
+    // Set up realtime subscriptions only after initial load
+    let notesSubscription: any;
+    let categoriesSubscription: any;
 
-    const categoriesSubscription = supabase
-      .channel('categories-changes')
-      .on('postgres_changes', 
-        { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          if (payload.eventType === 'INSERT') {
-            setCategories(prev => [...prev, payload.new as SupabaseCategory]);
-          } else if (payload.eventType === 'UPDATE') {
-            setCategories(prev => 
-              prev.map(category => 
-                category.id === payload.new.id ? (payload.new as SupabaseCategory) : category
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setCategories(prev => prev.filter(category => category.id !== payload.old.id));
-            if (activeCategory === payload.old.id) {
-              setActiveCategory(null);
+    if (isInitialized) {
+      notesSubscription = supabase
+        .channel('notes-changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              setNotes(prev => [payload.new as SupabaseNote, ...prev]);
+            } else if (payload.eventType === 'UPDATE') {
+              setNotes(prev => 
+                prev.map(note => 
+                  note.id === payload.new.id ? (payload.new as SupabaseNote) : note
+                )
+              );
+              if (activeNote?.id === payload.new.id) {
+                setActiveNote(payload.new as SupabaseNote);
+              }
+            } else if (payload.eventType === 'DELETE') {
+              setNotes(prev => prev.filter(note => note.id !== payload.old.id));
+              if (activeNote?.id === payload.old.id) {
+                setActiveNote(null);
+              }
             }
           }
-        }
-      )
-      .subscribe();
+        )
+        .subscribe();
+
+      categoriesSubscription = supabase
+        .channel('categories-changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'categories', filter: `user_id=eq.${user.id}` },
+          (payload) => {
+            if (payload.eventType === 'INSERT') {
+              setCategories(prev => [...prev, payload.new as SupabaseCategory]);
+            } else if (payload.eventType === 'UPDATE') {
+              setCategories(prev => 
+                prev.map(category => 
+                  category.id === payload.new.id ? (payload.new as SupabaseCategory) : category
+                )
+              );
+            } else if (payload.eventType === 'DELETE') {
+              setCategories(prev => prev.filter(category => category.id !== payload.old.id));
+              if (activeCategory === payload.old.id) {
+                setActiveCategory(null);
+              }
+            }
+          }
+        )
+        .subscribe();
+    }
 
     return () => {
-      supabase.removeChannel(notesSubscription);
-      supabase.removeChannel(categoriesSubscription);
+      if (notesSubscription) supabase.removeChannel(notesSubscription);
+      if (categoriesSubscription) supabase.removeChannel(categoriesSubscription);
     };
-  }, [user]);
+  }, [user, isInitialized]);
 
   // Create a new note
   const createNote = async (categoryId: string = '') => {
@@ -180,7 +204,10 @@ export function useSupabaseNotes() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating note:', error);
+        throw error;
+      }
       
       // Optimistic update
       const createdNote = data as SupabaseNote;
@@ -206,7 +233,10 @@ export function useSupabaseNotes() {
         .eq('id', updatedNote.id)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating note:', error);
+        throw error;
+      }
     } catch (error: any) {
       toast.error(`Error updating note: ${error.message}`);
     }
@@ -223,7 +253,10 @@ export function useSupabaseNotes() {
         .eq('id', id)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting note:', error);
+        throw error;
+      }
       
       if (activeNote?.id === id) {
         setActiveNote(null);
@@ -250,7 +283,10 @@ export function useSupabaseNotes() {
         .eq('id', id)
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error toggling pin status:', error);
+        throw error;
+      }
     } catch (error: any) {
       toast.error(`Error updating note: ${error.message}`);
     }
@@ -277,7 +313,10 @@ export function useSupabaseNotes() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error creating category:', error);
+        throw error;
+      }
       return data as SupabaseCategory;
     } catch (error: any) {
       toast.error(`Error creating category: ${error.message}`);
@@ -300,7 +339,10 @@ export function useSupabaseNotes() {
         .eq('category_id', id)
         .eq('user_id', user.id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        console.error('Error reassigning notes:', updateError);
+        throw updateError;
+      }
 
       // Then delete the category
       const { error: deleteError } = await supabase
@@ -309,7 +351,10 @@ export function useSupabaseNotes() {
         .eq('id', id)
         .eq('user_id', user.id);
 
-      if (deleteError) throw deleteError;
+      if (deleteError) {
+        console.error('Error deleting category:', deleteError);
+        throw deleteError;
+      }
 
       if (activeCategory === id) {
         setActiveCategory(null);
