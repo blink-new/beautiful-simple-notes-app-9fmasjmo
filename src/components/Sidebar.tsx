@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Category, Note } from '../types';
+import { SupabaseNote, SupabaseCategory } from '../hooks/useSupabaseNotes';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
@@ -15,23 +15,26 @@ import {
   Pin, 
   Trash2,
   Menu,
-  ChevronLeft
+  ChevronLeft,
+  Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useMobile } from '../hooks/use-mobile';
+import { format } from 'date-fns';
 
 interface SidebarProps {
-  notes: Note[];
-  categories: Category[];
-  activeNote: Note | null;
+  notes: SupabaseNote[];
+  categories: SupabaseCategory[];
+  activeNote: SupabaseNote | null;
   searchQuery: string;
   activeCategory: string | null;
+  isLoading: boolean;
   setSearchQuery: (query: string) => void;
-  setActiveNote: (note: Note | null) => void;
+  setActiveNote: (note: SupabaseNote | null) => void;
   setActiveCategory: (category: string | null) => void;
-  createNote: (category?: string) => Note;
-  deleteNote: (id: string) => void;
-  togglePinned: (id: string) => void;
+  createNote: (category?: string) => Promise<SupabaseNote | null>;
+  deleteNote: (id: string) => Promise<void>;
+  togglePinned: (id: string) => Promise<void>;
 }
 
 export function Sidebar({
@@ -40,6 +43,7 @@ export function Sidebar({
   activeNote,
   searchQuery,
   activeCategory,
+  isLoading,
   setSearchQuery,
   setActiveNote,
   setActiveCategory,
@@ -53,9 +57,11 @@ export function Sidebar({
   // If on mobile and a note is active, collapse the sidebar
   const shouldCollapse = isMobile && activeNote !== null;
 
-  const handleCreateNote = () => {
-    const newNote = createNote(activeCategory || undefined);
-    setActiveNote(newNote);
+  const handleCreateNote = async () => {
+    const newNote = await createNote(activeCategory || undefined);
+    if (newNote) {
+      setActiveNote(newNote);
+    }
   };
 
   const handleClearSearch = () => {
@@ -123,8 +129,14 @@ export function Sidebar({
             <Button 
               onClick={handleCreateNote} 
               className="w-full bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary/90"
+              disabled={isLoading}
             >
-              <Plus size={16} className="mr-2" /> New Note
+              {isLoading ? (
+                <Loader2 size={16} className="mr-2 animate-spin" />
+              ) : (
+                <Plus size={16} className="mr-2" />
+              )}
+              New Note
             </Button>
           </div>
 
@@ -164,76 +176,87 @@ export function Sidebar({
       )}
 
       <ScrollArea className="flex-1 px-4 py-2">
-        <AnimatePresence>
-          {!isCollapsed && notes.map((note) => (
-            <motion.div
-              key={note.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <div
-                className={cn(
-                  "p-3 mb-2 rounded-lg cursor-pointer group relative",
-                  activeNote?.id === note.id
-                    ? "bg-sidebar-accent"
-                    : "hover:bg-sidebar-accent/50"
-                )}
-                onClick={() => setActiveNote(note)}
+        {isLoading ? (
+          !isCollapsed && (
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-sidebar-foreground opacity-50" />
+            </div>
+          )
+        ) : (
+          <AnimatePresence>
+            {!isCollapsed && notes.map((note) => (
+              <motion.div
+                key={note.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2 }}
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-medium text-sidebar-foreground truncate pr-6">
-                      {note.title || "Untitled Note"}
-                    </h3>
-                    <div className="flex items-center mt-1">
-                      <div 
-                        className="w-2 h-2 rounded-full mr-2" 
-                        style={{ backgroundColor: getCategoryColor(note.category) }}
-                      />
-                      <span className="text-xs text-sidebar-foreground opacity-70">
-                        {getCategoryName(note.category)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-sidebar-foreground opacity-50 mt-1 line-clamp-2">
-                      {note.content || "No content"}
-                    </p>
-                  </div>
-                  {note.isPinned && (
-                    <Pin size={14} className="text-sidebar-primary absolute top-3 right-3" />
+                <div
+                  className={cn(
+                    "p-3 mb-2 rounded-lg cursor-pointer group relative",
+                    activeNote?.id === note.id
+                      ? "bg-sidebar-accent"
+                      : "hover:bg-sidebar-accent/50"
                   )}
+                  onClick={() => setActiveNote(note)}
+                >
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-medium text-sidebar-foreground truncate pr-6">
+                        {note.title || "Untitled Note"}
+                      </h3>
+                      <div className="flex items-center mt-1">
+                        <div 
+                          className="w-2 h-2 rounded-full mr-2" 
+                          style={{ backgroundColor: getCategoryColor(note.category_id) }}
+                        />
+                        <span className="text-xs text-sidebar-foreground opacity-70">
+                          {getCategoryName(note.category_id)}
+                        </span>
+                      </div>
+                      <p className="text-xs text-sidebar-foreground opacity-50 mt-1 line-clamp-2">
+                        {note.content || "No content"}
+                      </p>
+                      <div className="text-xs text-sidebar-foreground opacity-40 mt-1">
+                        {format(new Date(note.updated_at), 'MMM d, yyyy')}
+                      </div>
+                    </div>
+                    {note.is_pinned && (
+                      <Pin size={14} className="text-sidebar-primary absolute top-3 right-3" />
+                    )}
+                  </div>
+                  <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex space-x-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        togglePinned(note.id);
+                      }}
+                    >
+                      <Pin size={14} className={note.is_pinned ? "text-sidebar-primary" : ""} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNote(note.id);
+                      }}
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
                 </div>
-                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 flex space-x-1">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      togglePinned(note.id);
-                    }}
-                  >
-                    <Pin size={14} className={note.isPinned ? "text-sidebar-primary" : ""} />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteNote(note.id);
-                    }}
-                  >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
         
-        {!isCollapsed && notes.length === 0 && (
+        {!isLoading && !isCollapsed && notes.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <div className="bg-sidebar-accent/50 p-3 rounded-full mb-3">
               <PlusCircle size={24} className="text-sidebar-foreground opacity-50" />

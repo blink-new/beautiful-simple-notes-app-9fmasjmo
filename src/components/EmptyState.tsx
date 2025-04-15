@@ -21,7 +21,7 @@ export function EmptyState({ onCreateNote }: EmptyStateProps) {
         </div>
         <h1 className="text-3xl font-bold mb-3">Welcome to Notes</h1>
         <p className="text-muted-foreground mb-8 text-lg">
-          Create your first note to get started. Your notes will be saved locally on your device.
+          Create your first note to get started. Your notes will be saved to the cloud and accessible from anywhere.
         </p>
         <Button size="lg" onClick={onCreateNote}>
           <PlusCircle size={18} className="mr-2" /> Create Your First Note

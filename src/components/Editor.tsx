@@ -1,6 +1,6 @@
 
 import { useState, useEffect, useRef } from 'react';
-import { Note, Category } from '../types';
+import { SupabaseNote, SupabaseCategory } from '../hooks/useSupabaseNotes';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -19,11 +19,11 @@ import { format } from 'date-fns';
 import { useMobile } from '../hooks/use-mobile';
 
 interface EditorProps {
-  note: Note | null;
-  categories: Category[];
-  onUpdate: (note: Note) => void;
-  onDelete: (id: string) => void;
-  onTogglePinned: (id: string) => void;
+  note: SupabaseNote | null;
+  categories: SupabaseCategory[];
+  onUpdate: (note: Partial<SupabaseNote> & { id: string }) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onTogglePinned: (id: string) => Promise<void>;
   onBack: () => void;
 }
 
@@ -37,7 +37,7 @@ export function Editor({
 }: EditorProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const { isMobile } = useMobile();
@@ -50,12 +50,12 @@ export function Editor({
     if (note) {
       setTitle(note.title);
       setContent(note.content);
-      setCategory(note.category);
-      setLastSaved(note.updatedAt);
+      setCategoryId(note.category_id);
+      setLastSaved(new Date(note.updated_at));
     } else {
       setTitle('');
       setContent('');
-      setCategory('');
+      setCategoryId('');
       setLastSaved(null);
     }
   }, [note]);
@@ -87,22 +87,20 @@ export function Editor({
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [title, content, category]);
+  }, [title, content, categoryId]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!note) return;
     
     setIsSaving(true);
     
-    const updatedNote: Note = {
-      ...note,
+    await onUpdate({
+      id: note.id,
       title: title || 'Untitled Note',
       content,
-      category,
-      updatedAt: new Date(),
-    };
+      category_id: categoryId,
+    });
     
-    onUpdate(updatedNote);
     setLastSaved(new Date());
     
     // Show saving indicator briefly
@@ -120,19 +118,19 @@ export function Editor({
   };
 
   const handleCategoryChange = (value: string) => {
-    setCategory(value);
+    setCategoryId(value);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!note) return;
     if (window.confirm('Are you sure you want to delete this note?')) {
-      onDelete(note.id);
+      await onDelete(note.id);
     }
   };
 
-  const handleTogglePinned = () => {
+  const handleTogglePinned = async () => {
     if (!note) return;
-    onTogglePinned(note.id);
+    await onTogglePinned(note.id);
   };
 
   if (!note) {
@@ -190,7 +188,7 @@ export function Editor({
             variant="ghost"
             size="icon"
             onClick={handleTogglePinned}
-            className={cn(note.isPinned && "text-primary")}
+            className={cn(note.is_pinned && "text-primary")}
           >
             <Pin size={18} />
           </Button>
@@ -216,7 +214,7 @@ export function Editor({
           />
           
           <div className="mb-4">
-            <Select value={category} onValueChange={handleCategoryChange}>
+            <Select value={categoryId} onValueChange={handleCategoryChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
@@ -238,10 +236,10 @@ export function Editor({
           
           <div className="text-xs text-muted-foreground flex items-center mb-4">
             <Clock size={12} className="mr-1" />
-            Created: {format(note.createdAt, 'MMM d, yyyy')}
-            {note.createdAt.getTime() !== note.updatedAt.getTime() && (
+            Created: {format(new Date(note.created_at), 'MMM d, yyyy')}
+            {new Date(note.created_at).getTime() !== new Date(note.updated_at).getTime() && (
               <span className="ml-3">
-                • Updated: {format(note.updatedAt, 'MMM d, yyyy')}
+                • Updated: {format(new Date(note.updated_at), 'MMM d, yyyy')}
               </span>
             )}
           </div>
