@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -16,7 +15,6 @@ export function AuthPage() {
   const [username, setUsername] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('signin');
-  const navigate = useNavigate();
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,7 +32,7 @@ export function AuthPage() {
         });
 
         if (error) throw error;
-        navigate('/');
+        // No need to navigate - App.tsx will automatically show the main app when user is authenticated
       } else {
         const { error } = await supabase.auth.signUp({
           email,
