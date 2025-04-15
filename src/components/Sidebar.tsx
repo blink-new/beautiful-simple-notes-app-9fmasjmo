@@ -18,7 +18,7 @@ import {
   ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useIsMobile } from '../hooks/use-mobile';
+import { useMobile } from '../hooks/use-mobile';
 
 interface SidebarProps {
   notes: Note[];
@@ -48,7 +48,7 @@ export function Sidebar({
   togglePinned,
 }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const isMobile = useIsMobile();
+  const { isMobile } = useMobile();
   
   // If on mobile and a note is active, collapse the sidebar
   const shouldCollapse = isMobile && activeNote !== null;
