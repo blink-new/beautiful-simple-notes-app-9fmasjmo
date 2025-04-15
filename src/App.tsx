@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { useSupabaseNotes } from "./hooks/useSupabaseNotes";
-import { AuthForm } from "./components/auth/AuthForm";
+import { AuthPage } from "./pages/AuthPage";
 import { Sidebar } from "./components/Sidebar";
 import { Editor } from "./components/Editor";
 import { Toaster } from "./components/ui/sonner";
@@ -47,29 +47,7 @@ function App() {
   }
 
   if (!user) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gradient-to-b from-background to-muted/30">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="w-full max-w-md p-8 space-y-6 bg-background rounded-lg shadow-lg border"
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1, duration: 0.5 }}
-          >
-            <h1 className="text-3xl font-bold text-center">Notes App</h1>
-            <p className="text-center text-muted-foreground mt-2">
-              Sign in to access your notes
-            </p>
-          </motion.div>
-          <AuthForm />
-        </motion.div>
-        <Toaster />
-      </div>
-    );
+    return <AuthPage />;
   }
 
   return (
