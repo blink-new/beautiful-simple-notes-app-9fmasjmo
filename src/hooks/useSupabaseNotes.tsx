@@ -12,6 +12,7 @@ export interface SupabaseNote {
   category_id: string;
   user_id: string;
   is_pinned: boolean;
+  is_public?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -233,6 +234,7 @@ export function useSupabaseNotes() {
       category_id: targetCategoryId,
       user_id: user.id,
       is_pinned: false,
+      is_public: false,
     };
 
     try {
@@ -262,6 +264,21 @@ export function useSupabaseNotes() {
     if (!user) return;
 
     try {
+      // Optimistic UI update
+      setNotes(prev => 
+        prev.map(note => 
+          note.id === updatedNote.id 
+            ? { ...note, ...updatedNote, updated_at: new Date().toISOString() } 
+            : note
+        )
+      );
+      
+      if (activeNote?.id === updatedNote.id) {
+        setActiveNote(prev => 
+          prev ? { ...prev, ...updatedNote, updated_at: new Date().toISOString() } : null
+        );
+      }
+
       const { error } = await supabase
         .from('notes')
         .update({
@@ -277,6 +294,25 @@ export function useSupabaseNotes() {
       }
     } catch (error: any) {
       toast.error(`Error updating note: ${error.message}`);
+      
+      // Reload notes to ensure UI is in sync with server
+      const { data } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false });
+        
+      if (data) {
+        setNotes(data);
+        
+        // Update active note if needed
+        if (activeNote?.id === updatedNote.id) {
+          const updatedActiveNote = data.find(note => note.id === updatedNote.id);
+          if (updatedActiveNote) {
+            setActiveNote(updatedActiveNote);
+          }
+        }
+      }
     }
   };
 

@@ -9,8 +9,11 @@ import { Toaster } from "./components/ui/sonner";
 import { EmptyState } from "./components/EmptyState";
 import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { ThemeProvider } from "./lib/theme-provider";
+import { SharedNotePage } from "./pages/SharedNotePage";
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
-function App() {
+function NotesApp() {
   const { user, isLoading: isAuthLoading } = useAuth();
   const {
     notes,
@@ -29,7 +32,6 @@ function App() {
   } = useSupabaseNotes();
 
   const [isMounted, setIsMounted] = useState(false);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   useEffect(() => {
     setIsMounted(true);
@@ -53,7 +55,6 @@ function App() {
 
   const handleBackToNotes = () => {
     setActiveNote(null);
-    setIsSidebarVisible(true);
   };
 
   return (
@@ -106,6 +107,19 @@ function App() {
       </main>
       <Toaster />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider defaultTheme="system">
+      <Router>
+        <Routes>
+          <Route path="/" element={<NotesApp />} />
+          <Route path="/shared/:noteId" element={<SharedNotePage />} />
+        </Routes>
+      </Router>
+    </ThemeProvider>
   );
 }
 

@@ -1,15 +1,12 @@
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { SupabaseNote, SupabaseCategory } from '../hooks/useSupabaseNotes';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { Textarea } from './ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { 
   Pin, 
-  Save, 
-  Trash2, 
   Clock, 
   ArrowLeft,
   CheckCircle2
@@ -17,6 +14,9 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';
 import { useMobile } from '../hooks/use-mobile';
+import { MarkdownEditor } from './MarkdownEditor';
+import { ShareNoteDialog } from './ShareNoteDialog';
+import { ThemeToggle } from './ThemeToggle';
 
 interface EditorProps {
   note: SupabaseNote | null;
@@ -42,8 +42,7 @@ export function Editor({
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const { isMobile } = useMobile();
   
-  const contentRef = useRef<HTMLTextAreaElement>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Update local state when note changes
   useEffect(() => {
@@ -57,13 +56,6 @@ export function Editor({
       setContent('');
       setCategoryId('');
       setLastSaved(null);
-    }
-  }, [note]);
-
-  // Auto-focus the content area when a note is selected
-  useEffect(() => {
-    if (note && contentRef.current) {
-      contentRef.current.focus();
     }
   }, [note]);
 
@@ -113,8 +105,8 @@ export function Editor({
     setTitle(e.target.value);
   };
 
-  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+  const handleContentChange = (newContent: string) => {
+    setContent(newContent);
   };
 
   const handleCategoryChange = (value: string) => {
@@ -171,7 +163,7 @@ export function Editor({
               >
                 {isSaving ? (
                   <>
-                    <Save size={14} className="mr-1 animate-pulse" />
+                    <div className="animate-pulse mr-1 h-2 w-2 rounded-full bg-blue-500"></div>
                     Saving...
                   </>
                 ) : (
@@ -183,6 +175,10 @@ export function Editor({
               </motion.div>
             )}
           </AnimatePresence>
+          
+          <ThemeToggle />
+          
+          <ShareNoteDialog note={note} onUpdateNote={onUpdate} />
           
           <Button
             variant="ghost"
@@ -244,12 +240,11 @@ export function Editor({
             )}
           </div>
           
-          <Textarea
-            ref={contentRef}
-            value={content}
+          <MarkdownEditor
+            content={content}
             onChange={handleContentChange}
             placeholder="Start writing..."
-            className="min-h-[300px] resize-none border-none p-0 focus-visible:ring-0 bg-transparent"
+            className="min-h-[300px]"
           />
         </div>
       </div>
