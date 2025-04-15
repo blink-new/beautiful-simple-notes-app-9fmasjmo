@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SupabaseNote, SupabaseCategory } from '../hooks/useSupabaseNotes';
 import { cn } from '../lib/utils';
 import { Button } from './ui/button';
@@ -9,7 +9,8 @@ import {
   Pin, 
   Clock, 
   ArrowLeft,
-  CheckCircle2
+  CheckCircle2,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format } from 'date-fns';

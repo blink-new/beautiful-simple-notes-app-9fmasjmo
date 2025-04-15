@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "./hooks/useAuth";
 import { useSupabaseNotes } from "./hooks/useSupabaseNotes";
 import { AuthPage } from "./pages/AuthPage";
@@ -11,7 +11,7 @@ import { Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { ThemeProvider } from "./lib/theme-provider";
 import { SharedNotePage } from "./pages/SharedNotePage";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 function NotesApp() {
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -113,12 +113,12 @@ function NotesApp() {
 function App() {
   return (
     <ThemeProvider defaultTheme="system">
-      <Router>
+      <BrowserRouter>
         <Routes>
           <Route path="/" element={<NotesApp />} />
           <Route path="/shared/:noteId" element={<SharedNotePage />} />
         </Routes>
-      </Router>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
