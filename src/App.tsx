@@ -8,7 +8,6 @@ import { Editor } from "./components/Editor";
 import { Toaster } from "./components/ui/sonner";
 import { EmptyState } from "./components/EmptyState";
 import { Loader2 } from "lucide-react";
-import { motion } from "framer-motion";
 import { ThemeProvider } from "./lib/theme-provider";
 import { SharedNotePage } from "./pages/SharedNotePage";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
@@ -45,6 +44,7 @@ function NotesApp() {
     return (
       <div className="flex items-center justify-center h-screen">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <span className="ml-2 text-primary">Loading authentication...</span>
       </div>
     );
   }
@@ -77,6 +77,7 @@ function NotesApp() {
         {isNotesLoading ? (
           <div className="flex items-center justify-center h-full">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            <span className="ml-2 text-primary">Loading notes...</span>
           </div>
         ) : notes.length === 0 ? (
           <EmptyState
